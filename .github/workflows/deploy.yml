@@ -22,6 +22,9 @@ jobs:
 
       - name: Run tests
         run: npx playwright test
+        env:
+            APP_URL: ${{ vars.APP_URL }}
+            EXPECTED_FILE: ${{ vars.EXPECTED_FILE }}
 
       - name: Zip artifact
         run: zip -r app.zip . -x "node_modules/*" ".git/*" "test-results/*" ".playwright/*"
