@@ -1,19 +1,39 @@
 const { test, expect } = require("@playwright/test");
 
-test("status is online", async ({ page }) => {
-  await page.goto("https://statusapp56040.azurewebsites.net");
-  await expect(page.getByText("System Status: Online")).toBeVisible();
+const BASE_URL = process.env.APP_URL || "https://statusapp56040.azurewebsites.net";
+const EXPECTED_FILE = process.env.EXPECTED_FILE || "1770406392704-test.png";
+
+test.describe.configure({ retries: process.env.CI ? 2 : 0 });
+
+async function waitForHealthy(request, url) {
+  const deadlineMs = process.env.CI ? 120000 : 30000;
+  const start = Date.now();
+
+  while (Date.now() - start < deadlineMs) {
+    try {
+      const res = await request.get(url, { timeout: 15000 });
+      if (res.ok()) return;
+    } catch (e) {}
+    await new Promise(r => setTimeout(r, 5000));
+  }
+
+  throw new Error(`App not healthy within ${deadlineMs}ms: ${url}`);
+}
+
+test("status is online", async ({ page, request }) => {
+  test.setTimeout(process.env.CI ? 150000 : 60000);
+
+  await waitForHealthy(request, `${BASE_URL}/`);
+
+  await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await expect(page.getByText("System Status: Online")).toBeVisible({ timeout: 60000 });
 });
 
 test("files endpoint contains expected blob name", async ({ request }) => {
-  const baseUrl = "https://statusapp56040.azurewebsites.net";
-  const expectedFile = "1770406392704-test.png";
-
-  const res = await request.get(`${baseUrl}/files`);
+  const res = await request.get(`${BASE_URL}/files`, { timeout: 30000 });
   expect(res.ok()).toBeTruthy();
 
   const body = await res.json();
-  expect(body).toHaveProperty("files");
   expect(Array.isArray(body.files)).toBeTruthy();
-  expect(body.files).toContain(expectedFile);
+  expect(body.files).toContain(EXPECTED_FILE);
 });
