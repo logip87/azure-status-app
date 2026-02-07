@@ -1,201 +1,201 @@
 <!doctype html>
 <html lang="pl">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Azure Upload</title>
-</head>
-<body>
-  <h2>System Status: <span id="status">Loading...</span></h2>
-  <div>Server time: <span id="time">...</span></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Azure Upload</title>
+  </head>
+  <body>
+    <h2>System Status: <span id="status">Loading...</span></h2>
+    <div>Server time: <span id="time">...</span></div>
 
-  <hr/>
+    <hr />
 
-  <h2>Upload</h2>
+    <h2>Upload</h2>
 
-  <div style="margin-bottom: 8px;">
-    <label>
-      Hasło:
-      <input id="pw" name="pw" type="password" autocomplete="current-password" />
-    </label>
-    <span id="pwMsg" style="margin-left:8px;"></span>
-  </div>
+    <div style="margin-bottom: 8px">
+      <label>
+        Hasło:
+        <input id="pw" name="pw" type="password" autocomplete="current-password" />
+      </label>
+      <span id="pwMsg" style="margin-left: 8px"></span>
+    </div>
 
-  <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
-    <input type="hidden" name="pw" id="pwHidden" />
-    <input type="file" name="file" />
-    <button id="uploadBtn" type="submit" disabled>Upload</button>
-  </form>
+    <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="pw" id="pwHidden" />
+      <input type="file" name="file" />
+      <button id="uploadBtn" type="submit" disabled>Upload</button>
+    </form>
 
-  <hr/>
+    <hr />
 
-  <h2>Files</h2>
-  <div id="list">Loading...</div>
+    <h2>Files</h2>
+    <div id="list">Loading...</div>
 
-  <script>
-    const pwInput = document.getElementById("pw");
-    const pwHidden = document.getElementById("pwHidden");
-    const uploadBtn = document.getElementById("uploadBtn");
-    const pwMsg = document.getElementById("pwMsg");
-    const listEl = document.getElementById("list");
+    <script>
+      const pwInput = document.getElementById("pw");
+      const pwHidden = document.getElementById("pwHidden");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const pwMsg = document.getElementById("pwMsg");
+      const listEl = document.getElementById("list");
 
-    let timer = null;
-    let authed = false;
+      let timer = null;
+      let authed = false;
 
-    function setLocked(msg) {
-      authed = false;
-      uploadBtn.disabled = true;
-      pwMsg.textContent = msg || "";
-      pwMsg.style.color = "crimson";
-    }
-
-    function setUnlocked(msg) {
-      authed = true;
-      uploadBtn.disabled = false;
-      pwMsg.textContent = msg || "";
-      pwMsg.style.color = "green";
-    }
-
-    async function checkPassword(pw) {
-      if (!pw) {
-        setLocked("Wpisz hasło");
-        return false;
+      function setLocked(msg) {
+        authed = false;
+        uploadBtn.disabled = true;
+        pwMsg.textContent = msg || "";
+        pwMsg.style.color = "crimson";
       }
 
-      try {
-        const r = await fetch("/auth/check", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pw })
-        });
+      function setUnlocked(msg) {
+        authed = true;
+        uploadBtn.disabled = false;
+        pwMsg.textContent = msg || "";
+        pwMsg.style.color = "green";
+      }
 
-        if (r.ok) {
-          setUnlocked("OK");
-          return true;
+      async function checkPassword(pw) {
+        if (!pw) {
+          setLocked("Wpisz hasło");
+          return false;
         }
 
-        setLocked("Złe hasło");
-        return false;
-      } catch (e) {
-        setLocked("Błąd połączenia");
-        return false;
-      }
-    }
+        try {
+          const r = await fetch("/auth/check", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pw }),
+          });
 
-    pwInput.addEventListener("input", () => {
-      const pw = pwInput.value;
-      pwHidden.value = pw;
-
-      uploadBtn.disabled = true;
-      pwMsg.textContent = "Sprawdzam...";
-      pwMsg.style.color = "gray";
-
-      clearTimeout(timer);
-      timer = setTimeout(() => checkPassword(pw), 300);
-    });
-
-    document.getElementById("uploadForm").addEventListener("submit", (e) => {
-      pwHidden.value = pwInput.value;
-      if (!authed) e.preventDefault();
-    });
-
-    async function loadStatus() {
-      try {
-        const r = await fetch("/status");
-        const data = await r.json();
-        document.getElementById("status").textContent = data.status || "Unknown";
-        document.getElementById("time").textContent = data.serverTime || "";
-      } catch (e) {
-        document.getElementById("status").textContent = "Error";
-      }
-    }
-
-    async function deleteFile(name) {
-      const pw = pwInput.value;
-
-      if (!pw) {
-        alert("Wpisz hasło");
-        return;
-      }
-
-      const okPw = await checkPassword(pw);
-      if (!okPw) return;
-
-      const confirmDelete = confirm(`Usunąć plik: ${name} ?`);
-      if (!confirmDelete) return;
-
-      try {
-        const r = await fetch("/file/" + encodeURIComponent(name), {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pw })
-        });
-
-        if (!r.ok) {
-          const t = await r.text();
-          alert("Nie udało się usunąć: " + t);
-          return;
-        }
-
-        await loadFiles();
-      } catch (e) {
-        alert("Błąd połączenia");
-      }
-    }
-
-    async function loadFiles() {
-      listEl.textContent = "Loading...";
-
-      try {
-        const r = await fetch("/files");
-        const data = await r.json();
-
-        listEl.innerHTML = "";
-
-        if (!data.files || data.files.length === 0) {
-          listEl.textContent = "No files yet.";
-          return;
-        }
-
-        data.files.forEach(name => {
-          const wrap = document.createElement("div");
-          wrap.style.marginBottom = "12px";
-
-          const row = document.createElement("div");
-
-          const a = document.createElement("a");
-          a.href = "/file/" + encodeURIComponent(name);
-          a.textContent = name;
-          a.target = "_blank";
-          row.appendChild(a);
-
-          const delBtn = document.createElement("button");
-          delBtn.textContent = "Usuń";
-          delBtn.style.marginLeft = "10px";
-          delBtn.addEventListener("click", () => deleteFile(name));
-          row.appendChild(delBtn);
-
-          wrap.appendChild(row);
-
-          if (name.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
-            const img = document.createElement("img");
-            img.src = "/file/" + encodeURIComponent(name);
-            img.style.display = "block";
-            img.style.maxWidth = "320px";
-            img.style.marginTop = "6px";
-            wrap.appendChild(img);
+          if (r.ok) {
+            setUnlocked("OK");
+            return true;
           }
 
-          listEl.appendChild(wrap);
-        });
-      } catch (e) {
-        listEl.textContent = "Failed to load files.";
+          setLocked("Złe hasło");
+          return false;
+        } catch (e) {
+          setLocked("Błąd połączenia");
+          return false;
+        }
       }
-    }
 
-    setLocked("Wpisz hasło");
-    loadStatus();
-    loadFiles();
-  </script>
-</body>
+      pwInput.addEventListener("input", () => {
+        const pw = pwInput.value;
+        pwHidden.value = pw;
+
+        uploadBtn.disabled = true;
+        pwMsg.textContent = "Sprawdzam...";
+        pwMsg.style.color = "gray";
+
+        clearTimeout(timer);
+        timer = setTimeout(() => checkPassword(pw), 300);
+      });
+
+      document.getElementById("uploadForm").addEventListener("submit", (e) => {
+        pwHidden.value = pwInput.value;
+        if (!authed) e.preventDefault();
+      });
+
+      async function loadStatus() {
+        try {
+          const r = await fetch("/status");
+          const data = await r.json();
+          document.getElementById("status").textContent = data.status || "Unknown";
+          document.getElementById("time").textContent = data.serverTime || "";
+        } catch (e) {
+          document.getElementById("status").textContent = "Error";
+        }
+      }
+
+      async function deleteFile(name) {
+        const pw = pwInput.value;
+
+        if (!pw) {
+          alert("Wpisz hasło");
+          return;
+        }
+
+        const okPw = await checkPassword(pw);
+        if (!okPw) return;
+
+        const confirmDelete = confirm(`Usunąć plik: ${name} ?`);
+        if (!confirmDelete) return;
+
+        try {
+          const r = await fetch("/file/" + encodeURIComponent(name), {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pw }),
+          });
+
+          if (!r.ok) {
+            const t = await r.text();
+            alert("Nie udało się usunąć: " + t);
+            return;
+          }
+
+          await loadFiles();
+        } catch (e) {
+          alert("Błąd połączenia");
+        }
+      }
+
+      async function loadFiles() {
+        listEl.textContent = "Loading...";
+
+        try {
+          const r = await fetch("/files");
+          const data = await r.json();
+
+          listEl.innerHTML = "";
+
+          if (!data.files || data.files.length === 0) {
+            listEl.textContent = "No files yet.";
+            return;
+          }
+
+          data.files.forEach((name) => {
+            const wrap = document.createElement("div");
+            wrap.style.marginBottom = "12px";
+
+            const row = document.createElement("div");
+
+            const a = document.createElement("a");
+            a.href = "/file/" + encodeURIComponent(name);
+            a.textContent = name;
+            a.target = "_blank";
+            row.appendChild(a);
+
+            const delBtn = document.createElement("button");
+            delBtn.textContent = "Usuń";
+            delBtn.style.marginLeft = "10px";
+            delBtn.addEventListener("click", () => deleteFile(name));
+            row.appendChild(delBtn);
+
+            wrap.appendChild(row);
+
+            if (name.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
+              const img = document.createElement("img");
+              img.src = "/file/" + encodeURIComponent(name);
+              img.style.display = "block";
+              img.style.maxWidth = "320px";
+              img.style.marginTop = "6px";
+              wrap.appendChild(img);
+            }
+
+            listEl.appendChild(wrap);
+          });
+        } catch (e) {
+          listEl.textContent = "Failed to load files.";
+        }
+      }
+
+      setLocked("Wpisz hasło");
+      loadStatus();
+      loadFiles();
+    </script>
+  </body>
 </html>

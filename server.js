@@ -70,7 +70,8 @@ function getPasswordFromRequest(req) {
 }
 
 app.post("/auth/check", (req, res) => {
-  if (!passwordConfigured()) return res.status(500).json({ ok: false, error: "UPLOAD_PASSWORD not configured" });
+  if (!passwordConfigured())
+    return res.status(500).json({ ok: false, error: "UPLOAD_PASSWORD not configured" });
   const ok = passwordOk(getPasswordFromRequest(req));
   if (!ok) return res.status(401).json({ ok: false });
   return res.json({ ok: true });
@@ -91,7 +92,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     const blob = container.getBlockBlobClient(blobName);
 
     await blob.uploadData(req.file.buffer, {
-      blobHTTPHeaders: { blobContentType: req.file.mimetype }
+      blobHTTPHeaders: { blobContentType: req.file.mimetype },
     });
 
     res.redirect("/");
@@ -133,7 +134,8 @@ app.get("/file/:name", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Content-Disposition", `inline; filename="${name}"`);
 
-    if (!download.readableStreamBody) return res.status(500).json({ error: "No stream returned from blob" });
+    if (!download.readableStreamBody)
+      return res.status(500).json({ error: "No stream returned from blob" });
     download.readableStreamBody.pipe(res);
   } catch (e) {
     console.error(e);
@@ -144,8 +146,10 @@ app.get("/file/:name", async (req, res) => {
 // USUWANIE PLIKU z hasłem
 app.delete("/file/:name", async (req, res) => {
   try {
-    if (!passwordConfigured()) return res.status(500).json({ error: "UPLOAD_PASSWORD is not configured" });
-    if (!passwordOk(getPasswordFromRequest(req))) return res.status(401).json({ error: "Bad password" });
+    if (!passwordConfigured())
+      return res.status(500).json({ error: "UPLOAD_PASSWORD is not configured" });
+    if (!passwordOk(getPasswordFromRequest(req)))
+      return res.status(401).json({ error: "Bad password" });
 
     const name = req.params.name;
     if (!isSafeBlobName(name)) return res.status(400).json({ error: "Invalid file name" });

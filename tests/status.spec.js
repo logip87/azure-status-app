@@ -1,11 +1,9 @@
 const { test, expect } = require("@playwright/test");
 
 const BASE_URL =
-  (process.env.APP_URL && process.env.APP_URL.trim()) ||
-  "https://statusapp56040.azurewebsites.net";
+  (process.env.APP_URL && process.env.APP_URL.trim()) || "https://statusapp56040.azurewebsites.net";
 
-const EXPECTED_FILE =
-  (process.env.EXPECTED_FILE && process.env.EXPECTED_FILE.trim()) || null;
+const EXPECTED_FILE = (process.env.EXPECTED_FILE && process.env.EXPECTED_FILE.trim()) || null;
 
 test.describe.configure({ retries: process.env.CI ? 2 : 0 });
 
@@ -21,7 +19,7 @@ async function waitForHealthy(request) {
         const body = await res.json();
         if (body && body.status === "Online") return;
       }
-    } catch (e) {}
+    } catch (_) {}
 
     await new Promise((r) => setTimeout(r, 5000));
   }
