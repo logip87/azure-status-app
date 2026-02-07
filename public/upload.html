@@ -10,9 +10,15 @@ app.get("/", async (req, res) => {
     <div id="list">Loading...</div>
     <script>
       fetch('/files').then(r=>r.json()).then(data=>{
-        const el = document.getElementById('list');
-        el.innerHTML = '';
-        data.files.forEach(name=>{
+  const el = document.getElementById('list');
+  el.innerHTML = '';
+
+  if (!data.files || data.files.length === 0) {
+    el.textContent = "No files yet.";
+    return;
+  }
+
+  data.files.forEach(name=>{
           const wrap = document.createElement('div');
           wrap.style.marginBottom = '12px';
           const a = document.createElement('a');

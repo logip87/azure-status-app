@@ -1,8 +1,15 @@
+const path = require("path");
 const express = require("express");
 const multer = require("multer");
 const { BlobServiceClient } = require("@azure/storage-blob");
 
 const app = express();
+app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "upload.html"));
+});
+
 const port = process.env.PORT || 3000;
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -25,10 +32,6 @@ function getContainerClient() {
   return service.getContainerClient(containerName);
 }
 
-app.get("/", (req, res) => {
-  res.send(`System Status: Online<br/>Server time: ${new Date().toISOString()}`);
-});
-
 app.post("/upload", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded. Use form-data field: file" });
@@ -43,7 +46,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       blobHTTPHeaders: { blobContentType: req.file.mimetype }
     });
 
-    res.json({ ok: true, blobName });
+    res.redirect("/");
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message || String(e) });
@@ -68,9 +71,7 @@ app.get("/file/:name", async (req, res) => {
     const blob = container.getBlockBlobClient(req.params.name);
 
     const download = await blob.download();
-    const contentType = download.contentType || "application/octet-stream";
-
-    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Type", download.contentType || "application/octet-stream");
     res.setHeader("Cache-Control", "no-store");
 
     download.readableStreamBody.pipe(res);
