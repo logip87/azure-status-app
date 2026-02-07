@@ -21,6 +21,9 @@
     "containerName": {
       "type": "string",
       "defaultValue": "uploads"
+    },
+    "uploadPassword": {
+      "type": "secureString"
     }
   },
   "resources": [
@@ -83,6 +86,10 @@
             {
               "name": "AZURE_STORAGE_CONTAINER",
               "value": "[parameters('containerName')]"
+            },
+            {
+              "name": "UPLOAD_PASSWORD",
+              "value": "[parameters('uploadPassword')]"
             },
             {
               "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",

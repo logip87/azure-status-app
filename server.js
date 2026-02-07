@@ -18,7 +18,10 @@ app.get("/status", (req, res) => {
   res.json({ status: "Online", serverTime: new Date().toISOString() });
 });
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 function getConnString() {
   return (
@@ -65,7 +68,7 @@ function passwordOk(pwFromUser) {
 }
 
 function getPasswordFromRequest(req) {
-  // UI wysyła pw w body
+  // UI sends pw in request body
   return (req.body && req.body.pw) || "";
 }
 
@@ -143,7 +146,7 @@ app.get("/file/:name", async (req, res) => {
   }
 });
 
-// USUWANIE PLIKU z hasłem
+// File delete with password
 app.delete("/file/:name", async (req, res) => {
   try {
     if (!passwordConfigured())

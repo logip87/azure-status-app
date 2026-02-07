@@ -1,131 +1,121 @@
-```md
 # azure-status-app
 
-A small DevOps + QA automation project: a Node.js/Express app deployed to **Azure App Service**, integrated with **Azure Blob Storage** (upload/list/download/delete), with **Infrastructure as Code (Bicep)** and a **GitHub Actions CI/CD** pipeline running **Playwright smoke tests**.
+A small learning project that shows the full path from code to cloud:
+- a simple Node.js app
+- Azure App Service deployment
+- Azure Blob Storage for file uploads
+- Infrastructure as Code in Bicep
+- GitHub Actions pipeline with Playwright smoke tests
 
-This repository was built as part of a learning task often described as “QA to Azure Cloud” (build a simple app, deploy to Azure, add automated tests, and make the infrastructure reproducible).
+This repo was built while practicing a "QA to Azure Cloud" style task: deploy something real, automate tests, and make the infrastructure reproducible.
 
-## What’s included
+## Live demo
+- App: https://statusapp56040.azurewebsites.net
+- Status endpoint: https://statusapp56040.azurewebsites.net/status
+- List files: https://statusapp56040.azurewebsites.net/files
 
-### Application (Node.js/Express)
+## What the app does
+You can upload files (images too) into Azure Blob Storage and then:
+- see the list of uploaded files
+- preview images in the UI
+- open/download any file
+- delete files from the UI (protected by a password)
 
-- Web UI for uploads: `GET /` (upload form + file list + image previews)
-- Health/status endpoint: `GET /status` (Online + server time)
-- Upload: `POST /upload` (multipart form-data, field `file`)
+## Main features
+- Upload UI: `GET /`
+- Health/status: `GET /status`
+- Upload file: `POST /upload` (multipart form-data, field name: `file`)
 - List blobs: `GET /files`
-- View/download blob: `GET /file/:name`
+- Download/view blob: `GET /file/:name`
 - Delete blob: `DELETE /file/:name`
-- Simple access gate:
-  - `UPLOAD_PASSWORD` required for upload/delete
-  - `POST /auth/check` used by the UI to enable the Upload button
+- Password check used by UI: `POST /auth/check`
 
-### Infrastructure as Code (Bicep)
+## Basic security (simple on purpose)
+This project uses a very simple protection:
+- `UPLOAD_PASSWORD` is required to enable Upload and Delete
+- the password is stored in GitHub Secrets and injected into Azure App Service via Bicep
 
-Located in `infra/`:
+This is not production auth. It is just a small access gate for the learning task.
 
-- `rg.bicep` creates the **Resource Group** (subscription scope)
-- `app.bicep` creates:
-  - App Service Plan (Linux, B1)
-  - Web App (Node runtime `NODE|20-lts`)
-  - Storage Account (Blob)
-  - Blob container (default `uploads`)
-  - App settings, including `UPLOAD_PASSWORD` injected from GitHub Secrets via a secure Bicep parameter
+## Project structure
+```txt
+.
+├─ infra/
+│  ├─ rg.bicep          # creates resource group (subscription scope)
+│  └─ app.bicep         # app service + storage + container + app settings
+├─ public/
+│  └─ upload.html       # simple UI page
+├─ tests/
+│  └─ status.spec.js    # Playwright smoke tests
+├─ server.js            # Node.js/Express server
+└─ .github/workflows/
+   └─ deploy.yml        # CI/CD pipeline
+```
 
-### CI/CD (GitHub Actions)
-
-Workflow: `.github/workflows/deploy.yml`
-
-- checkout
-- `npm ci`
-- install Playwright browser dependencies
-- run Playwright smoke tests
-- package the app into `app.zip` (zip deploy)
-- Azure login via Service Principal (`azure/login`)
-- deploy infra (Bicep)
-- deploy app (zip deploy to Web App)
-
-## Why this repo is useful for recruitment
-
-It demonstrates end-to-end delivery:
-
-- code → infrastructure → CI/CD → running cloud service
-- IaC with reproducible environments (RG + App + Storage)
-- automated tests in the pipeline (Playwright)
-- handling typical Azure/App Service issues (supported runtimes, 502 on crash, missing env vars, container initialization, PowerShell CLI gotchas)
-
-## Requirements
-
-- Node.js 18+ locally (production uses `NODE|20-lts`)
-- Azure subscription
-- GitHub repository with Actions enabled
+## Tech stack
+- Node.js + Express
+- Azure App Service (Linux, Node 20 LTS)
+- Azure Storage (Blob)
+- Bicep (IaC)
+- GitHub Actions
+- Playwright (smoke tests)
 
 ## Environment variables
-
-The app reads:
-
+The app uses:
 - `AZURE_STORAGE_CONNECTION_STRING` or `CUSTOMCONNSTR_AZURE_STORAGE_CONNECTION_STRING`
 - `AZURE_STORAGE_CONTAINER` (default: `uploads`)
-- `UPLOAD_PASSWORD` (required for upload/delete and `/auth/check`)
+- `UPLOAD_PASSWORD` (required for upload/delete)
 - `PORT` (optional, default: `3000`)
 
 ## Run locally
 
-1. Install:
-   - `npm ci`
-2. Set env vars (PowerShell example):
-   - `$env:AZURE_STORAGE_CONNECTION_STRING="..."`
-   - `$env:AZURE_STORAGE_CONTAINER="uploads"`
-   - `$env:UPLOAD_PASSWORD="your-password"`
-3. Start:
-   - `npm start`
-4. Open:
-   - `http://localhost:3000`
+### Install deps
+```bash
+npm ci
+```
 
-## Endpoints
+### Set env vars (PowerShell example)
+```powershell
+$env:AZURE_STORAGE_CONNECTION_STRING="..."
+$env:AZURE_STORAGE_CONTAINER="uploads"
+$env:UPLOAD_PASSWORD="your-password"
+```
 
-- `GET /` – upload UI (file list + image previews)
-- `GET /status` – status + server time
-- `POST /auth/check` – password check (JSON: `{ "pw": "..." }`)
-- `POST /upload` – upload (multipart form-data, field `file`, includes `pw`)
-- `GET /files` – list blobs in the container
-- `GET /file/:name` – view/download file (inline)
-- `DELETE /file/:name` – delete file (JSON body includes `pw`)
+### Start
+```bash
+npm start
+```
 
-## Tests (Playwright)
+### Open
+- http://localhost:3000
 
-Smoke tests run locally and in CI:
+## Infrastructure (Bicep)
+Files in `infra/`:
+- `rg.bicep` creates the Resource Group at subscription level
+- `app.bicep` creates App Service Plan, Web App, Storage Account and Blob container
 
-- UI smoke: page loads and shows `System Status: Online`
-- API smoke: `/files` returns a valid `files[]` array (optionally checks a known filename)
+`app.bicep` also sets App Service settings like:
+- storage connection string
+- container name
+- upload password
 
-Run:
+## CI/CD pipeline (GitHub Actions)
+Workflow: `.github/workflows/deploy.yml`
 
-- `npx playwright test`
+What it does:
+- checkout repo
+- install dependencies (`npm ci`)
+- run lint and formatting checks (if enabled)
+- run Playwright smoke tests
+- deploy infrastructure using Bicep
+- zip deploy app to Azure Web App
+- upload Playwright reports as artifacts (if enabled)
 
-CI uses:
+### Required GitHub Secrets
+- `AZURE_CREDENTIALS` (Service Principal JSON used by `azure/login`)
+- `UPLOAD_PASSWORD`
 
-- `APP_URL` (deployed app URL)
-- `CI=true`
-
-Note: after recreating infrastructure, the storage container may be empty. Tests should be resilient to “no files” unless you seed a sample blob during the pipeline.
-
-## Security (intentionally simple)
-
-This is not production-grade authentication. It’s a task-level access gate:
-
-- upload and delete require `UPLOAD_PASSWORD`
-- the password is stored in **GitHub Secrets** and injected into App Service through **Bicep** using a secure parameter
-- if `UPLOAD_PASSWORD` is missing, upload/delete are blocked
-
-## CI/CD configuration: required Secrets and Variables
-
-### GitHub Secrets
-
-- `AZURE_CREDENTIALS` – Service Principal JSON for `azure/login`
-- `UPLOAD_PASSWORD` – password used by UI/API for upload/delete
-
-### GitHub Variables
-
+### Required GitHub Variables
 - `AZURE_LOCATION`
 - `AZURE_RESOURCE_GROUP`
 - `AZURE_WEBAPP_NAME`
@@ -134,28 +124,25 @@ This is not production-grade authentication. It’s a task-level access gate:
 - `AZURE_STORAGE_CONTAINER`
 - `APP_URL`
 
-## Infrastructure overview
+## Tests
 
-`app.bicep` creates all required Azure resources and sets App Settings:
-
-- `AZURE_STORAGE_CONNECTION_STRING` is built using Storage Account keys (`listKeys()`)
-- `UPLOAD_PASSWORD` is injected from GitHub Secrets as a secure parameter
-
-## Common issues (handled during development)
-
-- App Service Node runtime must be a supported value (e.g., `NODE|20-lts`)
-- PowerShell reserved variables (e.g., `$host`) can break CLI scripts
-- 502 after deploy often means the app crashed due to missing env vars or code errors
-- “The specified container does not exist” requires creating the container (or `createIfNotExists()`)
-
-## Next improvements (ideas)
-
-- seed a sample blob in the pipeline (so the UI always shows an image after infra recreation)
-- upload Playwright artifacts (`test-results`, `playwright-report`) as GitHub Actions artifacts
-- add ESLint + Prettier and enforce lint/format in CI
-- add Application Insights for basic observability
-
----
-
-This repo is a practical demo of Azure App Service + Storage, Bicep IaC, GitHub Actions CI/CD, zip deploy, and Playwright smoke testing.
+### Run locally
+```bash
+npx playwright test
 ```
+
+### What is tested
+- the app loads and shows "System Status: Online"
+- `/files` returns JSON with an array named `files`
+
+## Common issues I hit (and fixed)
+- App Service Node runtime must be supported (Node 18 LTS was not available, used Node 20 LTS)
+- missing env vars caused 502 because the app crashed on startup
+- storage container did not exist at first, so the app now creates it when needed
+- PowerShell has reserved variables (like `$host`), so I used a different variable name
+
+## Ideas for next improvements
+- use Managed Identity instead of storage keys
+- add Application Insights for logs and metrics
+- seed a sample image during CI so the UI is never empty after infra recreation
+- add rate limiting and real auth if this was a real product
