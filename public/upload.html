@@ -37,25 +37,29 @@
     const pwHidden = document.getElementById("pwHidden");
     const uploadBtn = document.getElementById("uploadBtn");
     const pwMsg = document.getElementById("pwMsg");
+    const listEl = document.getElementById("list");
 
     let timer = null;
+    let authed = false;
 
     function setLocked(msg) {
+      authed = false;
       uploadBtn.disabled = true;
       pwMsg.textContent = msg || "";
       pwMsg.style.color = "crimson";
     }
 
     function setUnlocked(msg) {
+      authed = true;
       uploadBtn.disabled = false;
       pwMsg.textContent = msg || "";
       pwMsg.style.color = "green";
     }
 
     async function checkPassword(pw) {
-      if (!pw || pw.length < 1) {
+      if (!pw) {
         setLocked("Wpisz hasło");
-        return;
+        return false;
       }
 
       try {
@@ -65,10 +69,16 @@
           body: JSON.stringify({ pw })
         });
 
-        if (r.ok) setUnlocked("OK");
-        else setLocked("Złe hasło");
+        if (r.ok) {
+          setUnlocked("OK");
+          return true;
+        }
+
+        setLocked("Złe hasło");
+        return false;
       } catch (e) {
         setLocked("Błąd połączenia");
+        return false;
       }
     }
 
@@ -81,14 +91,12 @@
       pwMsg.style.color = "gray";
 
       clearTimeout(timer);
-      timer = setTimeout(() => checkPassword(pw), 400);
+      timer = setTimeout(() => checkPassword(pw), 300);
     });
 
     document.getElementById("uploadForm").addEventListener("submit", (e) => {
       pwHidden.value = pwInput.value;
-      if (uploadBtn.disabled) {
-        e.preventDefault();
-      }
+      if (!authed) e.preventDefault();
     });
 
     async function loadStatus() {
@@ -102,18 +110,50 @@
       }
     }
 
+    async function deleteFile(name) {
+      const pw = pwInput.value;
+
+      if (!pw) {
+        alert("Wpisz hasło");
+        return;
+      }
+
+      const okPw = await checkPassword(pw);
+      if (!okPw) return;
+
+      const confirmDelete = confirm(`Usunąć plik: ${name} ?`);
+      if (!confirmDelete) return;
+
+      try {
+        const r = await fetch("/file/" + encodeURIComponent(name), {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pw })
+        });
+
+        if (!r.ok) {
+          const t = await r.text();
+          alert("Nie udało się usunąć: " + t);
+          return;
+        }
+
+        await loadFiles();
+      } catch (e) {
+        alert("Błąd połączenia");
+      }
+    }
+
     async function loadFiles() {
-      const el = document.getElementById("list");
-      el.textContent = "Loading...";
+      listEl.textContent = "Loading...";
 
       try {
         const r = await fetch("/files");
         const data = await r.json();
 
-        el.innerHTML = "";
+        listEl.innerHTML = "";
 
         if (!data.files || data.files.length === 0) {
-          el.textContent = "No files yet.";
+          listEl.textContent = "No files yet.";
           return;
         }
 
@@ -121,11 +161,21 @@
           const wrap = document.createElement("div");
           wrap.style.marginBottom = "12px";
 
+          const row = document.createElement("div");
+
           const a = document.createElement("a");
           a.href = "/file/" + encodeURIComponent(name);
           a.textContent = name;
           a.target = "_blank";
-          wrap.appendChild(a);
+          row.appendChild(a);
+
+          const delBtn = document.createElement("button");
+          delBtn.textContent = "Usuń";
+          delBtn.style.marginLeft = "10px";
+          delBtn.addEventListener("click", () => deleteFile(name));
+          row.appendChild(delBtn);
+
+          wrap.appendChild(row);
 
           if (name.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
             const img = document.createElement("img");
@@ -136,10 +186,10 @@
             wrap.appendChild(img);
           }
 
-          el.appendChild(wrap);
+          listEl.appendChild(wrap);
         });
       } catch (e) {
-        el.textContent = "Failed to load files.";
+        listEl.textContent = "Failed to load files.";
       }
     }
 
