@@ -1,0 +1,35 @@
+name: deploy
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run tests
+        run: npx playwright test
+
+      - name: Zip artifact
+        run: zip -r app.zip . -x "node_modules/*" ".git/*" "test-results/*" ".playwright/*"
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy zip to Web App
+        run: az webapp deploy --resource-group rg-azure-status-app --name statusapp56040 --src-path app.zip --type zip
