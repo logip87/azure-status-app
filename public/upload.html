@@ -1,43 +1,82 @@
-app.get("/", async (req, res) => {
-  res.type("html").send(`
-    <h2>Upload</h2>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-      <input type="file" name="file" />
-      <button type="submit">Upload</button>
-    </form>
-    <hr/>
-    <h2>Files</h2>
-    <div id="list">Loading...</div>
-    <script>
-      fetch('/files').then(r=>r.json()).then(data=>{
-  const el = document.getElementById('list');
-  el.innerHTML = '';
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Azure Upload</title>
+</head>
+<body>
+  <h2>System Status: <span id="status">Loading...</span></h2>
+  <div>Server time: <span id="time">...</span></div>
 
-  if (!data.files || data.files.length === 0) {
-    el.textContent = "No files yet.";
-    return;
-  }
+  <hr/>
 
-  data.files.forEach(name=>{
-          const wrap = document.createElement('div');
-          wrap.style.marginBottom = '12px';
-          const a = document.createElement('a');
-          a.href = '/file/' + encodeURIComponent(name);
+  <h2>Upload</h2>
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="file" />
+    <button type="submit">Upload</button>
+  </form>
+
+  <hr/>
+
+  <h2>Files</h2>
+  <div id="list">Loading...</div>
+
+  <script>
+    async function loadStatus() {
+      try {
+        const r = await fetch("/status");
+        const data = await r.json();
+        document.getElementById("status").textContent = data.status || "Unknown";
+        document.getElementById("time").textContent = data.serverTime || "";
+      } catch (e) {
+        document.getElementById("status").textContent = "Error";
+      }
+    }
+
+    async function loadFiles() {
+      const el = document.getElementById("list");
+      el.textContent = "Loading...";
+
+      try {
+        const r = await fetch("/files");
+        const data = await r.json();
+
+        el.innerHTML = "";
+
+        if (!data.files || data.files.length === 0) {
+          el.textContent = "No files yet.";
+          return;
+        }
+
+        data.files.forEach(name => {
+          const wrap = document.createElement("div");
+          wrap.style.marginBottom = "12px";
+
+          const a = document.createElement("a");
+          a.href = "/file/" + encodeURIComponent(name);
           a.textContent = name;
-          a.target = '_blank';
+          a.target = "_blank";
           wrap.appendChild(a);
 
-          if (name.match(/\\.(png|jpg|jpeg|gif|webp)$/i)) {
-            const img = document.createElement('img');
-            img.src = '/file/' + encodeURIComponent(name);
-            img.style.display = 'block';
-            img.style.maxWidth = '300px';
-            img.style.marginTop = '6px';
+          if (name.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
+            const img = document.createElement("img");
+            img.src = "/file/" + encodeURIComponent(name);
+            img.style.display = "block";
+            img.style.maxWidth = "320px";
+            img.style.marginTop = "6px";
             wrap.appendChild(img);
           }
+
           el.appendChild(wrap);
         });
-      });
-    </script>
-  `);
-});
+      } catch (e) {
+        el.textContent = "Failed to load files.";
+      }
+    }
+
+    loadStatus();
+    loadFiles();
+  </script>
+</body>
+</html>

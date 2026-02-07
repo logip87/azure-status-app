@@ -1,40 +1,57 @@
 const { test, expect } = require("@playwright/test");
 
-const BASE_URL = (process.env.APP_URL && process.env.APP_URL.trim()) || "https://statusapp56040.azurewebsites.net";
-const EXPECTED_FILE = (process.env.EXPECTED_FILE && process.env.EXPECTED_FILE.trim()) || null;
+const BASE_URL =
+  (process.env.APP_URL && process.env.APP_URL.trim()) ||
+  "https://statusapp56040.azurewebsites.net";
+
+const EXPECTED_FILE =
+  (process.env.EXPECTED_FILE && process.env.EXPECTED_FILE.trim()) || null;
 
 test.describe.configure({ retries: process.env.CI ? 2 : 0 });
 
-async function waitForHealthy(request, url) {
+async function waitForHealthy(request) {
   const deadlineMs = process.env.CI ? 120000 : 30000;
   const start = Date.now();
 
   while (Date.now() - start < deadlineMs) {
     try {
-      const res = await request.get(url, { timeout: 15000 });
-      if (res.ok()) return;
+      // zdrowie sprawdzamy na /status (najpewniejsze)
+      const res = await request.get(`${BASE_URL}/status`, { timeout: 15000 });
+      if (res.ok()) {
+        const body = await res.json();
+        if (body && body.status === "Online") return;
+      }
     } catch (e) {}
-    await new Promise(r => setTimeout(r, 5000));
+
+    await new Promise((r) => setTimeout(r, 5000));
   }
 
-  throw new Error(`App not healthy within ${deadlineMs}ms: ${url}`);
+  throw new Error(`App not healthy within ${deadlineMs}ms: ${BASE_URL}/status`);
 }
 
-test("status is online", async ({ page, request }) => {
+test("status is online (UI)", async ({ page, request }) => {
   test.setTimeout(process.env.CI ? 150000 : 60000);
 
-  await waitForHealthy(request, `${BASE_URL}/`);
+  await waitForHealthy(request);
 
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 60000 });
-  await expect(page.getByText("System Status: Online")).toBeVisible({ timeout: 60000 });
+
+  // Nowe UI: "System Status:" + span#status = Online
+  await expect(page.getByText("System Status:")).toBeVisible({ timeout: 60000 });
+  await expect(page.locator("#status")).toHaveText("Online", { timeout: 60000 });
 });
 
-test("files endpoint contains expected blob name", async ({ request }) => {
+test("files endpoint returns array and optionally contains expected blob", async ({ request }) => {
+  await waitForHealthy(request);
+
   const res = await request.get(`${BASE_URL}/files`, { timeout: 30000 });
   expect(res.ok()).toBeTruthy();
 
   const body = await res.json();
-  if (EXPECTED_FILE) expect(body.files).toContain(EXPECTED_FILE);
+  expect(body).toHaveProperty("files");
   expect(Array.isArray(body.files)).toBeTruthy();
-  expect(body.files).toContain(EXPECTED_FILE);
+
+  if (EXPECTED_FILE) {
+    expect(body.files).toContain(EXPECTED_FILE);
+  }
 });
