@@ -56,7 +56,8 @@ jobs:
                 appName=${{ vars.AZURE_WEBAPP_NAME }} \
                 planName=${{ vars.AZURE_APP_SERVICE_PLAN }} \
                 storageAccountName=${{ vars.AZURE_STORAGE_ACCOUNT }} \
-                containerName=${{ vars.AZURE_STORAGE_CONTAINER }}
+                containerName=${{ vars.AZURE_STORAGE_CONTAINER }} \
+                uploadPassword='${{ secrets.UPLOAD_PASSWORD }}'
 
       - name: Deploy zip to Web App
         uses: azure/CLI@v2

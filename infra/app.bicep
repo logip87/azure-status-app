@@ -1,9 +1,13 @@
 targetScope = 'resourceGroup'
 
+@secure()
+param uploadPassword string
+
 param appName string
 param planName string
 param storageAccountName string
 param containerName string = 'uploads'
+
 
 resource plan 'Microsoft.Web/serverfarms@2022-09-01' = {
   name: planName
@@ -39,7 +43,7 @@ resource uploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
   }
 }
 
-var storageKey = listKeys(storage.id, '2023-01-01').keys[0].value
+var storageKey = storage.listKeys().keys[0].value
 var storageConnStr = 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storageKey};EndpointSuffix=${environment().suffixes.storage}'
 
 resource web 'Microsoft.Web/sites@2022-09-01' = {
@@ -54,6 +58,7 @@ resource web 'Microsoft.Web/sites@2022-09-01' = {
       appSettings: [
         { name: 'AZURE_STORAGE_CONNECTION_STRING', value: storageConnStr }
         { name: 'AZURE_STORAGE_CONTAINER', value: containerName }
+        { name: 'UPLOAD_PASSWORD', value: uploadPassword }
         { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'true' }
       ]
     }
