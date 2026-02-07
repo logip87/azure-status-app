@@ -1,7 +1,7 @@
 const { test, expect } = require("@playwright/test");
 
-const BASE_URL = process.env.APP_URL || "https://statusapp56040.azurewebsites.net";
-const EXPECTED_FILE = process.env.EXPECTED_FILE || "1770406392704-test.png";
+const BASE_URL = process.env.APP_URL;
+const EXPECTED_FILE = process.env.EXPECTED_FILE;
 
 test.describe.configure({ retries: process.env.CI ? 2 : 0 });
 
@@ -34,6 +34,7 @@ test("files endpoint contains expected blob name", async ({ request }) => {
   expect(res.ok()).toBeTruthy();
 
   const body = await res.json();
+  if (EXPECTED_FILE) expect(body.files).toContain(EXPECTED_FILE);
   expect(Array.isArray(body.files)).toBeTruthy();
   expect(body.files).toContain(EXPECTED_FILE);
 });

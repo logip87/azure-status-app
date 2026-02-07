@@ -62,4 +62,21 @@ app.get("/files", async (req, res) => {
   }
 });
 
+app.get("/file/:name", async (req, res) => {
+  try {
+    const container = getContainerClient();
+    const blob = container.getBlockBlobClient(req.params.name);
+
+    const download = await blob.download();
+    const contentType = download.contentType || "application/octet-stream";
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "no-store");
+
+    download.readableStreamBody.pipe(res);
+  } catch (e) {
+    res.status(404).json({ error: "File not found" });
+  }
+});
+
 app.listen(port, () => console.log(`Listening on port ${port}`));
