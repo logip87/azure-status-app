@@ -1,7 +1,7 @@
 const { test, expect } = require("@playwright/test");
 
-const BASE_URL = process.env.APP_URL;
-const EXPECTED_FILE = process.env.EXPECTED_FILE;
+const BASE_URL = (process.env.APP_URL && process.env.APP_URL.trim()) || "https://statusapp56040.azurewebsites.net";
+const EXPECTED_FILE = (process.env.EXPECTED_FILE && process.env.EXPECTED_FILE.trim()) || null;
 
 test.describe.configure({ retries: process.env.CI ? 2 : 0 });
 

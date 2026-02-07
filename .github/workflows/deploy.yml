@@ -72,3 +72,5 @@ jobs:
         run: npx playwright test
         env:
           CI: true
+          APP_URL: ${{ vars.APP_URL }}
+
