@@ -12,9 +12,19 @@
   <hr/>
 
   <h2>Upload</h2>
-  <form action="/upload" method="post" enctype="multipart/form-data">
+
+  <div style="margin-bottom: 8px;">
+    <label>
+      Hasło:
+      <input id="pw" name="pw" type="password" autocomplete="current-password" />
+    </label>
+    <span id="pwMsg" style="margin-left:8px;"></span>
+  </div>
+
+  <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="pw" id="pwHidden" />
     <input type="file" name="file" />
-    <button type="submit">Upload</button>
+    <button id="uploadBtn" type="submit" disabled>Upload</button>
   </form>
 
   <hr/>
@@ -23,6 +33,64 @@
   <div id="list">Loading...</div>
 
   <script>
+    const pwInput = document.getElementById("pw");
+    const pwHidden = document.getElementById("pwHidden");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const pwMsg = document.getElementById("pwMsg");
+
+    let timer = null;
+
+    function setLocked(msg) {
+      uploadBtn.disabled = true;
+      pwMsg.textContent = msg || "";
+      pwMsg.style.color = "crimson";
+    }
+
+    function setUnlocked(msg) {
+      uploadBtn.disabled = false;
+      pwMsg.textContent = msg || "";
+      pwMsg.style.color = "green";
+    }
+
+    async function checkPassword(pw) {
+      if (!pw || pw.length < 1) {
+        setLocked("Wpisz hasło");
+        return;
+      }
+
+      try {
+        const r = await fetch("/auth/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pw })
+        });
+
+        if (r.ok) setUnlocked("OK");
+        else setLocked("Złe hasło");
+      } catch (e) {
+        setLocked("Błąd połączenia");
+      }
+    }
+
+    pwInput.addEventListener("input", () => {
+      const pw = pwInput.value;
+      pwHidden.value = pw;
+
+      uploadBtn.disabled = true;
+      pwMsg.textContent = "Sprawdzam...";
+      pwMsg.style.color = "gray";
+
+      clearTimeout(timer);
+      timer = setTimeout(() => checkPassword(pw), 400);
+    });
+
+    document.getElementById("uploadForm").addEventListener("submit", (e) => {
+      pwHidden.value = pwInput.value;
+      if (uploadBtn.disabled) {
+        e.preventDefault();
+      }
+    });
+
     async function loadStatus() {
       try {
         const r = await fetch("/status");
@@ -75,6 +143,7 @@
       }
     }
 
+    setLocked("Wpisz hasło");
     loadStatus();
     loadFiles();
   </script>
