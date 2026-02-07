@@ -1,38 +1,74 @@
-name: deploy
+name: ci-cd
 
 on:
   push:
     branches: ["main"]
 
 jobs:
-  build-test-deploy:
+  build_test_deploy:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
-      - run: npm ci
+      - name: Install deps
+        run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        run: npx playwright install --with-deps chromium
 
-      - name: Run tests
-        run: npx playwright test
-        env:
-            APP_URL: ${{ vars.APP_URL }}
-            EXPECTED_FILE: ${{ vars.EXPECTED_FILE }}
-
-      - name: Zip artifact
-        run: zip -r app.zip . -x "node_modules/*" ".git/*" "test-results/*" ".playwright/*"
+      - name: Package app
+        run: |
+          zip -r app.zip . \
+            -x "node_modules/*" ".git/*" "test-results/*" ".playwright/*" "*.zip"
 
       - name: Azure login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+            - name: Deploy resource group (Bicep)
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az deployment sub create \
+              --location ${{ vars.AZURE_LOCATION }} \
+              --template-file infra/rg.bicep \
+              --parameters \
+                location=${{ vars.AZURE_LOCATION }} \
+                resourceGroupName=${{ vars.AZURE_RESOURCE_GROUP }}
+
+      - name: Deploy app resources (Bicep)
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az deployment group create \
+              --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+              --template-file infra/app.bicep \
+              --parameters \
+                appName=${{ vars.AZURE_WEBAPP_NAME }} \
+                planName=${{ vars.AZURE_APP_SERVICE_PLAN }} \
+                storageAccountName=${{ vars.AZURE_STORAGE_ACCOUNT }} \
+                containerName=${{ vars.AZURE_STORAGE_CONTAINER }}
+
       - name: Deploy zip to Web App
-        run: az webapp deploy --resource-group rg-azure-status-app --name statusapp56040 --src-path app.zip --type zip
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az webapp deploy \
+              --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+              --name ${{ vars.AZURE_WEBAPP_NAME }} \
+              --src-path app.zip \
+              --type zip
+
+      - name: Run Playwright tests (smoke)
+        run: npx playwright test
+        env:
+          CI: true
