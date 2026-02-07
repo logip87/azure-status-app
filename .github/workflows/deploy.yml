@@ -34,7 +34,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-            - name: Deploy resource group (Bicep)
+      - name: Deploy resource group (Bicep)
         uses: azure/CLI@v2
         with:
           inlineScript: |
