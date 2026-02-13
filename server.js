@@ -43,10 +43,17 @@ function getContainerClient() {
 
 function isSafeBlobName(name) {
   if (!name) return false;
-  if (name.includes("..")) return false;
   if (name.includes("/") || name.includes("\\")) return false;
+  if (name === "." || name === "..") return false;
+  if (/[\u0000-\u001f\u007f]/.test(name)) return false;
   if (name.length > 300) return false;
   return true;
+}
+
+function normalizeUploadFileName(name) {
+  const base = path.basename(String(name || "file")).trim();
+  const collapsedDots = base.replace(/\.{2,}/g, ".");
+  return collapsedDots || "file";
 }
 
 function timingSafeEqualStr(a, b) {
@@ -92,7 +99,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     const container = getContainerClient();
     await container.createIfNotExists();
 
-    const original = path.basename(req.file.originalname || "file");
+    const original = normalizeUploadFileName(req.file.originalname);
     const blobName = `${Date.now()}-${original}`;
     const blob = container.getBlockBlobClient(blobName);
 

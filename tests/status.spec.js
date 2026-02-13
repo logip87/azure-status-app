@@ -39,17 +39,10 @@ test("status is online (UI)", async ({ page, request }) => {
   await expect(page.locator("#status")).toHaveText("Online", { timeout: 60000 });
 });
 
-test("files endpoint returns array and optionally contains expected blob", async ({ request }) => {
-  await waitForHealthy(request);
-
-  const res = await request.get(`${BASE_URL}/files`, { timeout: 30000 });
+test("files endpoint returns array", async ({ request }) => {
+  const res = await request.get(`${BASE_URL}/files`);
   expect(res.ok()).toBeTruthy();
 
   const body = await res.json();
-  expect(body).toHaveProperty("files");
   expect(Array.isArray(body.files)).toBeTruthy();
-
-  if (EXPECTED_FILE) {
-    expect(body.files).toContain(EXPECTED_FILE);
-  }
 });

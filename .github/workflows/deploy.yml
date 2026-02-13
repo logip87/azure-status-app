@@ -3,11 +3,23 @@ name: ci-cd
 on:
   push:
     branches: ["main"]
+    paths:
+      - "server.js"
+      - "public/**"
+      - "tests/**"
+      - "package*.json"
+      - ".github/workflows/**"
   workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build_test_deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -28,20 +40,46 @@ jobs:
       - name: Format check
         run: npm run format:check
 
+      # Cache Playwright browsers to speed up builds
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
       - name: Package app
         run: |
           zip -r app.zip . \
-            -x "node_modules/*" ".git/*" "test-results/*" "playwright-report/*" ".playwright/*" "*.zip"
+            -x "node_modules/*" \
+               ".git/*" \
+               ".github/*" \
+               "test-results/*" \
+               "playwright-report/*" \
+               ".playwright/*" \
+               "*.zip" \
+               "*.md" \
+               "infra/*"
 
       - name: Azure login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # Deploy infra only when infra files changed (skip on pure app changes)
+      - name: Detect infra changes
+        id: infra
+        run: |
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^infra/"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Deploy app resources (Bicep)
+        if: steps.infra.outputs.changed == 'true'
         uses: azure/CLI@v2
         with:
           inlineScript: |
@@ -70,7 +108,7 @@ jobs:
       - name: Run Playwright tests (smoke)
         run: npx playwright test
         env:
-          CI: true
+          CI: "true"
           APP_URL: ${{ vars.APP_URL }}
           EXPECTED_FILE: ${{ vars.EXPECTED_FILE }}
 
