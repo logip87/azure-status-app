@@ -4,6 +4,7 @@ on:
   push:
     branches: ["main"]
   workflow_dispatch:
+
 jobs:
   build_test_deploy:
     runs-on: ubuntu-latest
@@ -20,6 +21,7 @@ jobs:
 
       - name: Install deps
         run: npm ci
+
       - name: Lint
         run: npm run lint
 
@@ -32,45 +34,36 @@ jobs:
       - name: Package app
         run: |
           zip -r app.zip . \
-            -x "node_modules/*" ".git/*" "test-results/*" ".playwright/*" "*.zip"
+            -x "node_modules/*" ".git/*" "test-results/*" "playwright-report/*" ".playwright/*" "*.zip"
 
       - name: Azure login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy resource group (Bicep)
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            az deployment sub create \
-              --location ${{ vars.AZURE_LOCATION }} \
-              --template-file infra/rg.bicep \
-              --parameters \
-                location=${{ vars.AZURE_LOCATION }} \
-                resourceGroupName=${{ vars.AZURE_RESOURCE_GROUP }}
-
       - name: Deploy app resources (Bicep)
         uses: azure/CLI@v2
         with:
           inlineScript: |
             az deployment group create \
-              --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
               --template-file infra/app.bicep \
               --parameters \
-                appName=${{ vars.AZURE_WEBAPP_NAME }} \
-                planName=${{ vars.AZURE_APP_SERVICE_PLAN }} \
-                storageAccountName=${{ vars.AZURE_STORAGE_ACCOUNT }} \
-                containerName=${{ vars.AZURE_STORAGE_CONTAINER }} \
-                uploadPassword='${{ secrets.UPLOAD_PASSWORD }}'
+                appName="${{ vars.AZURE_WEBAPP_NAME }}" \
+                planName="${{ vars.AZURE_APP_SERVICE_PLAN }}" \
+                storageAccountName="${{ vars.AZURE_STORAGE_ACCOUNT }}" \
+                containerName="${{ vars.AZURE_STORAGE_CONTAINER }}" \
+                logAnalyticsName="${{ vars.AZURE_LOG_ANALYTICS_NAME }}" \
+                appInsightsName="${{ vars.AZURE_APP_INSIGHTS_NAME }}" \
+                uploadPassword="${{ secrets.UPLOAD_PASSWORD }}"
 
       - name: Deploy zip to Web App
         uses: azure/CLI@v2
         with:
           inlineScript: |
             az webapp deploy \
-              --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
-              --name ${{ vars.AZURE_WEBAPP_NAME }} \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --name "${{ vars.AZURE_WEBAPP_NAME }}" \
               --src-path app.zip \
               --type zip
 
@@ -79,6 +72,7 @@ jobs:
         env:
           CI: true
           APP_URL: ${{ vars.APP_URL }}
+          EXPECTED_FILE: ${{ vars.EXPECTED_FILE }}
 
       - name: Upload Playwright report
         if: always()
