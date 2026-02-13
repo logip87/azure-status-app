@@ -77,7 +77,6 @@ function passwordOk(pwFromUser) {
 }
 
 function getPasswordFromRequest(req) {
-  // UI sends pw in request body
   return (req.body && req.body.pw) || "";
 }
 
@@ -155,7 +154,6 @@ app.get("/file/:name", async (req, res) => {
   }
 });
 
-// File delete with password
 app.delete("/file/:name", async (req, res) => {
   try {
     if (!passwordConfigured())

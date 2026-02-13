@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pl">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -15,7 +15,7 @@
 
     <div style="margin-bottom: 8px">
       <label>
-        Hasło:
+        Password:
         <input id="pw" name="pw" type="password" autocomplete="current-password" />
       </label>
       <span id="pwMsg" style="margin-left: 8px"></span>
@@ -58,7 +58,7 @@
 
       async function checkPassword(pw) {
         if (!pw) {
-          setLocked("Wpisz hasło");
+          setLocked("Enter password");
           return false;
         }
 
@@ -74,10 +74,10 @@
             return true;
           }
 
-          setLocked("Złe hasło");
+          setLocked("Wrong password");
           return false;
         } catch (e) {
-          setLocked("Błąd połączenia");
+          setLocked("Connection error");
           return false;
         }
       }
@@ -87,7 +87,7 @@
         pwHidden.value = pw;
 
         uploadBtn.disabled = true;
-        pwMsg.textContent = "Sprawdzam...";
+        pwMsg.textContent = "Checking...";
         pwMsg.style.color = "gray";
 
         clearTimeout(timer);
@@ -114,14 +114,14 @@
         const pw = pwInput.value;
 
         if (!pw) {
-          alert("Wpisz hasło");
+          alert("Enter password");
           return;
         }
 
         const okPw = await checkPassword(pw);
         if (!okPw) return;
 
-        const confirmDelete = confirm(`Usunąć plik: ${name} ?`);
+        const confirmDelete = confirm(`Delete file: ${name} ?`);
         if (!confirmDelete) return;
 
         try {
@@ -133,13 +133,13 @@
 
           if (!r.ok) {
             const t = await r.text();
-            alert("Nie udało się usunąć: " + t);
+            alert("Delete failed: " + t);
             return;
           }
 
           await loadFiles();
         } catch (e) {
-          alert("Błąd połączenia");
+          alert("Connection error");
         }
       }
 
@@ -170,7 +170,7 @@
             row.appendChild(a);
 
             const delBtn = document.createElement("button");
-            delBtn.textContent = "Usuń";
+            delBtn.textContent = "Delete";
             delBtn.style.marginLeft = "10px";
             delBtn.addEventListener("click", () => deleteFile(name));
             row.appendChild(delBtn);
@@ -193,7 +193,7 @@
         }
       }
 
-      setLocked("Wpisz hasło");
+      setLocked("Enter password");
       loadStatus();
       loadFiles();
     </script>

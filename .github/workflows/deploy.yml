@@ -40,7 +40,6 @@ jobs:
       - name: Format check
         run: npm run format:check
 
-      # Cache Playwright browsers to speed up builds
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -68,7 +67,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Deploy infra only when infra files changed (skip on pure app changes)
       - name: Detect infra changes
         id: infra
         run: |

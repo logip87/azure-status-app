@@ -13,7 +13,6 @@ async function waitForHealthy(request) {
 
   while (Date.now() - start < deadlineMs) {
     try {
-      // zdrowie sprawdzamy na /status (najpewniejsze)
       const res = await request.get(`${BASE_URL}/status`, { timeout: 15000 });
       if (res.ok()) {
         const body = await res.json();
@@ -34,7 +33,6 @@ test("status is online (UI)", async ({ page, request }) => {
 
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 60000 });
 
-  // Nowe UI: "System Status:" + span#status = Online
   await expect(page.getByText("System Status:")).toBeVisible({ timeout: 60000 });
   await expect(page.locator("#status")).toHaveText("Online", { timeout: 60000 });
 });

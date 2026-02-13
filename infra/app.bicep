@@ -93,13 +93,11 @@ resource web 'Microsoft.Web/sites@2022-09-01' = {
     siteConfig: {
       linuxFxVersion: 'NODE|20-lts'
       appSettings: [
-        // App Insights
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appi.properties.ConnectionString
         }
 
-        // Storage
         {
           name: 'AZURE_STORAGE_CONNECTION_STRING'
           value: storageConnStr
@@ -109,13 +107,11 @@ resource web 'Microsoft.Web/sites@2022-09-01' = {
           value: containerName
         }
 
-        // App auth
         {
           name: 'UPLOAD_PASSWORD'
           value: uploadPassword
         }
 
-        // Kudu build
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
           value: 'true'
